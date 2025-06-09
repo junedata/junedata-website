@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛠️ Cleveland Building Permits</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+    <script data-goatcounter="https://building-permit-v1.goatcounter.com/count" async
+        src="//gc.zgo.at/count.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        #loadingSpinner {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+
+        .query-summary {
+            padding-top: 40px;
+        }
+
+        .content-container {
+            padding-top: 0px;
+        }
+
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease-in-out, visibility 0.15s ease-in-out;
+            z-index: 10;
+        }
+
+        .highlight {
+            background-color: yellow;
+            font-weight: bold;
+            padding: 2px;
+            border-radius: 3px;
+        }
+
+        .filter-dot {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 8px;
+            height: 8px;
+            background-color: red;
+            /* Change color if needed */
+            border-radius: 50%;
+            display: none;
+            /* Hide by default */
+        }
+
+        #loadingMessage {
+            opacity: 1;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .permit-link {
+            text-decoration: underline;
+            /* Underline the link */
+            color: inherit;
+            /* Keep the same color as surrounding text */
+            cursor: pointer;
+            /* Indicate it's clickable */
+        }
+
+        @media (max-width: 767.98px) {
+            .fees-paid {
+                display: none !important;
+            }
+        }
+    </style>
+    <script>
+        let currentPage = 0;
+        const recordsPerPage = 20;
+        let allRecords = [];
+        let loading = false;
+        let lastSearchQuery = ""; // Stores the last executed query
+        let noMoreResults = false; // Flag to prevent further unnecessary fetches
+        const sessionUUID = generateUUID(); // Generate a unique session ID
+        let today = new Date().toISOString().split("T")[0];
+
+
+        async function fetchData(append = false) {
+            if (loading || (noMoreResults && append)) {
+                console.log("Loading or no more results");
+                return;
+            }
+            loading = true;
+
+            const filterCategory = document.getElementById("categoryFilter").value;
+            const filterNeighborhood = document.getElementById("neighborhoodFilter").value;
+            const filterSubtype = document.getElementById("subtypeFilter").value;
+            const searchQuery = `${document.getElementById("searchInput").value.trim()}`;
+            const addressQuery = document.getElementById("addressSearchInput").value.trim().replace(/\s+/g, "%");
+            const contractorNameQuery = document.getElementById("contractorNameInput").value.trim(); // NEW FIELD
+            const sortOrder = document.getElementById("sortOrder").value; // Get selected sort order
+            const jobValueMin = document.getElementById("jobValueMin").value;
+            const jobValueMax = document.getElementById("jobValueMax").value;
+            const yearMin = document.getElementById("yearMin").value;
+            const yearMax = document.getElementById("yearMax").value;
+
+            const resultOffset = append ? (currentPage * recordsPerPage) : 0; // Track pagination
+
+            // Create a search query string to check if anything has changed
+            const currentSearchQuery = JSON.stringify({
+                filterCategory,
+                filterNeighborhood,
+                filterSubtype,
+                searchQuery,
+                addressQuery,
+                contractorNameQuery, // NEW FIELD
+                sortOrder,
+                resultOffset,
+                append,
+                jobValueMin,
+                jobValueMax,
+                yearMin,
+                yearMax
+            });
+
+
+
+            // Show the bottom spinner when appending more data
+            if (append) {
+                document.getElementById("bottomLoadingSpinner").style.display = "block";
+                currentPage++;
+            }
+
+
+            // Prevent re-running the same query when clicking Search
+            if (!append && currentSearchQuery === lastSearchQuery) {
+                console.log("Same search query, not re-running fetchData.");
+                loading = false;
+                return;
+            }
+
+            lastSearchQuery = currentSearchQuery; // Store the current query for comparison
+            noMoreResults = false; // Reset "no more results" flag for new searches
+
+            document.getElementById("bottomLoadingSpinner").style.display = "block";
+
+            if (!append) {
+                console.log("Resetting page");
+                currentPage = 0;
+                allRecords = [];
+                document.getElementById("noMoreResults").style.display = "none";
+                document.getElementById("dataContainer").innerHTML = "";
+            }
+
+            updateQuerySummary(); // Update search summary
+
+            const url = "https://services3.arcgis.com/dty2kHktVXHrqO8i/arcgis/rest/services/Building_Permits/FeatureServer/0/query";
+            let whereClauses = ["1=1"];
+
+            if (filterCategory) whereClauses.push(`PERMIT_CATEGORY='${filterCategory.replace(/'/g, "''")}'`);
+            if (filterNeighborhood) whereClauses.push(`DW_Neighborhood='${filterNeighborhood.replace(/'/g, "''")}'`);
+            if (filterSubtype) whereClauses.push(`PERMIT_SUBTYPE='${filterSubtype.replace(/'/g, "''")}'`);
+
+            // Special logic: if searchInput matches B/E/H + numbers, search both WORK_DESCRIPTION and PERMIT_ID
+            let searchPattern = /^[BEH]\d+$/i;
+            if (searchQuery && searchPattern.test(searchQuery)) {
+                let safeSearch = searchQuery.replace(/'/g, "''");
+                whereClauses.push(`(WORK_DESCRIPTION LIKE '%${safeSearch}%' OR PERMIT_ID LIKE '%${safeSearch}%')`);
+            } else if (searchQuery) {
+                whereClauses.push(`WORK_DESCRIPTION LIKE '%${searchQuery.replace(/'/g, "''")}%'`);
+            }
+
+            if (addressQuery) whereClauses.push(`PRIMARY_ADDRESS LIKE '%${addressQuery.replace(/'/g, "''")}%'`);
+            if (contractorNameQuery) whereClauses.push(`CONTRATOR_BUSINESS_NAME LIKE '%${contractorNameQuery.replace(/'/g, "''")}%'`); // NEW FIELD
+            if (jobValueMin) whereClauses.push(`JOB_VALUE >= ${jobValueMin}`);
+            if (jobValueMax) whereClauses.push(`JOB_VALUE <= ${jobValueMax}`);
+            if (yearMin) whereClauses.push(`FILE_DATE >= '${yearMin}'`);
+            if (yearMax) whereClauses.push(`FILE_DATE <= '${yearMax}'`);
+
+
+            const params = new URLSearchParams({
+                where: whereClauses.join(" AND "),
+                outFields: "PERMIT_ID,PRIMARY_ADDRESS,PERMIT_SUBTYPE,PERMIT_CATEGORY,WORK_DESCRIPTION,CONTRACTOR_NAME,CONTRATOR_BUSINESS_NAME,JOB_VALUE,FILE_DATE,PARCEL_NUMBER,DW_Ward,DW_Neighborhood,TOTAL_FEES_PAID",
+                orderByFields: sortOrder, // Use selected sorting order
+                resultOffset: currentPage * recordsPerPage,
+                resultRecordCount: recordsPerPage,
+                f: "json"
+            });
+
+            // Log the search if any filter is used
+            if (filterCategory || filterNeighborhood || filterSubtype || searchQuery !== "%%" || addressQuery !== "%" || contractorNameQuery !== "" || sortOrder !== "FILE_DATE DESC" || jobValueMin || jobValueMax || (yearMin !== "01/01/2000" && yearMin !== "") || yearMax) {
+                logSearchQuery(filterCategory, filterNeighborhood, filterSubtype, searchQuery, addressQuery, contractorNameQuery, sortOrder, currentPage * recordsPerPage, append);
+            }
+
+            const response = await fetch(`${url}?${params}`);
+            const data = await response.json();
+
+            // Hide the bottom spinner after fetching
+            document.getElementById("bottomLoadingSpinner").style.display = "none";
+
+            if (data.features.length === 0) {
+                console.log("No more results");
+                document.getElementById("noMoreResults").style.display = "block";
+                noMoreResults = true; // Prevent further fetching
+                loading = false;
+                return;
+            }
+
+            allRecords = append ? allRecords.concat(data.features.map(f => f.attributes)) : data.features.map(f => f.attributes);
+
+            displayRecords();
+            loading = false;
+        }
+
+        function highlightMatch(text, searchTerm) {
+            if (!searchTerm) return text; // No highlight if search is empty
+
+            // Escape special regex characters in searchTerm
+            let escapedTerm = searchTerm.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+
+            // Replace matches with a span-wrapped highlighted version
+            let regex = new RegExp(escapedTerm, "gi");
+            return text.replace(regex, (match) => `<span class="highlight">${match}</span>`);
+        }
+
+        function displayRecords() {
+            const container = document.getElementById("dataContainer");
+            container.innerHTML = "";
+
+            // Get search input values
+            const searchQuery = document.getElementById("searchInput").value.trim();
+            const addressQuery = document.getElementById("addressSearchInput").value.trim();
+
+            // Permit number pattern
+            let searchPattern = /^[BEH]\d+$/i;
+
+            allRecords.forEach(record => {
+                // Only take substring before "CLEVELAND, OH" (case-insensitive)
+                let addressCleaned = record.PRIMARY_ADDRESS;
+                if (addressCleaned) {
+                    let idx = addressCleaned.toUpperCase().indexOf(", CLEVELAND, OH");
+                    if (idx !== -1) {
+                        addressCleaned = addressCleaned.substring(0, idx).trim();
+                    }
+                }
+                let formattedJobValue = record.JOB_VALUE ? `$${Math.round(record.JOB_VALUE).toLocaleString()}` : "$-";
+
+                let contractorBusinessName = record.CONTRATOR_BUSINESS_NAME?.trim() || "";
+                let contractorHumanName = record.CONTRACTOR_NAME?.trim() || "";
+
+                // Escape apostrophes for JS string literal in onclick
+                function jsEscape(str) {
+                    return (str || "").replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                }
+
+                let contractorLink = contractorBusinessName !== '-'
+                    ? `<a href="#" class="contractor-link" data-bs-toggle="modal" data-bs-target="#contractorModal" onclick="fetchContractorDetails('${jsEscape(contractorBusinessName)}', '${jsEscape(contractorHumanName)}')">${contractorBusinessName}</a>`
+                    : '-';
+
+                // Determine subtype icon with tooltip
+                let subtypeIcon = '';
+                if (record.PERMIT_SUBTYPE === "Residential") {
+                    subtypeIcon = `<i class="bi bi-house-fill text-success permit-subtype" data-bs-toggle="tooltip" title="Residential"></i>`;
+                } else if (record.PERMIT_SUBTYPE === "Commercial") {
+                    subtypeIcon = `<i class="bi bi-building-fill text-primary permit-subtype" data-bs-toggle="tooltip" title="Commercial"></i>`;
+                }
+
+                // Highlight matches in WORK_DESCRIPTION and ADDRESS
+                let highlightedDescription = highlightMatch(record.WORK_DESCRIPTION || 'No description', searchQuery);
+                let highlightedAddress = highlightMatch(addressCleaned, addressQuery);
+
+                // Highlight Permit Number if search matches permit number pattern
+                let permitIdDisplay = record.PERMIT_ID || 'N/A';
+                if (searchQuery && searchPattern.test(searchQuery)) {
+                    permitIdDisplay = highlightMatch(permitIdDisplay, searchQuery);
+                }
+
+                // Construct the ArcGIS API link for the permit ID
+                const permitApiUrl = `https://services3.arcgis.com/dty2kHktVXHrqO8i/arcgis/rest/services/Building_Permits/FeatureServer/0/query?where=PERMIT_ID+%3D+%27${encodeURIComponent(record.PERMIT_ID)}%27&objectIds=&resultType=none&outFields=*&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnDistinctValues=false&cacheHint=false&collation=&orderByFields=FILE_DATE+DESC&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&sqlFormat=none&f=html&token=`;
+
+                // Format fees paid
+                let feesPaid = (typeof record.TOTAL_FEES_PAID === "number" && !isNaN(record.TOTAL_FEES_PAID))
+                    ? `$${record.TOTAL_FEES_PAID.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : "$-";
+
+                container.innerHTML += `
+                        <div class="card mb-3">
+                            <!-- Top section (Address) -->
+                            <div class="card-header bg-light">
+                                <p class="card-text mb-0">
+                                    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(record.PRIMARY_ADDRESS)}" target="_blank">${highlightedAddress}</a> 
+                                </p>
+                                <small class="text-muted">${record.DW_Neighborhood || 'N/A'}, Ward ${record.DW_Ward || 'N/A'}</small>
+                            </div>
+
+                            <!-- Center section (Work Description - White Background) -->
+                            <div class="card-body">
+                                <h5 class="card-title">${highlightedDescription}</h5>
+                                <p class="card-text">${formattedJobValue} | ${contractorLink || 'N/A'}</p>
+                            </div>
+
+                            <!-- Bottom section (Permit Info) -->
+                            <div class="card-footer bg-light d-flex flex-wrap align-items-center justify-content-between">
+                                <small class="text-muted flex-grow-1">
+                                    ${subtypeIcon} Permit 
+                                    <a href="${permitApiUrl}" target="_blank" class="permit-link">${permitIdDisplay}</a> | 
+                                    Filed ${new Date(record.FILE_DATE + (new Date().getTimezoneOffset() * 60000)).toLocaleDateString("en-US", { timeZone: "America/New_York" })}
+                                </small>
+                                <small class="text-muted ms-2 fees-paid d-none d-md-inline" style="white-space:nowrap;">
+                                    Fees Paid: ${feesPaid}
+                                    ${(typeof record.TOTAL_FEES_PAID === "number" && typeof record.JOB_VALUE === "number" && record.JOB_VALUE > 0)
+                        ? ` (${((record.TOTAL_FEES_PAID / record.JOB_VALUE) * 100).toFixed(1)}%)`
+                        : ""
+                    }
+                                </small>
+                            </div>
+                        </div>`;
+            });
+
+
+            // Activate Bootstrap tooltips after the elements are added to the DOM
+            activateTooltips();
+        }
+
+        let scrollTimeout;
+
+        function handleScroll() {
+            if (noMoreResults) return; // Stop fetching if no more results exist
+            if (scrollTimeout) {
+                clearTimeout(scrollTimeout);
+            }
+            scrollTimeout = setTimeout(() => {
+                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 700) {
+                    fetchData(true);
+                }
+            }, 50); // Adjust debounce time as needed
+        }
+
+        function resetAndFetchData() {
+            currentPage = 0; // Reset pagination
+        }
+
+        function searchAndCloseNav() {
+            updateUrlFromFilters();
+            fetchData(); // Run the search query
+
+            // Close the navbar properly
+            let filterMenu = document.getElementById("filterMenu");
+            let bsCollapse = new bootstrap.Collapse(filterMenu, {
+                toggle: false
+            });
+            bsCollapse.hide();
+        }
+
+        function clearFilters() {
+            // Reset all inputs and selects
+            document.getElementById("searchInput").value = "";
+            document.getElementById("addressSearchInput").value = "";
+            document.getElementById("contractorNameInput").value = ""; // NEW FIELD
+            document.getElementById("categoryFilter").selectedIndex = 0;
+            document.getElementById("neighborhoodFilter").selectedIndex = 0;
+            document.getElementById("subtypeFilter").selectedIndex = 0;
+            document.getElementById("jobValueMin").value = "";
+            document.getElementById("jobValueMax").value = "";
+            document.getElementById("yearMin").value = "";
+            document.getElementById("yearMax").value = "";
+
+            const filterIndicator = document.getElementById("filterIndicator");
+            filterIndicator.style.display = "none"; // Hide dot
+
+            // Reset pagination and fetch fresh data
+            currentPage = 0;
+            fetchData();
+        }
+
+        function updateQuerySummary() {
+            const filters = [];
+
+            const category = document.getElementById("categoryFilter").value;
+            const neighborhood = document.getElementById("neighborhoodFilter").value;
+            const subtype = document.getElementById("subtypeFilter").value;
+            const searchQuery = document.getElementById("searchInput").value.trim();
+            const addressQuery = document.getElementById("addressSearchInput").value.trim();
+            const contractorNameQuery = document.getElementById("contractorNameInput").value.trim(); // NEW FIELD
+            const sortOrder = document.getElementById("sortOrder").value;
+            const jobValueMin = document.getElementById("jobValueMin").value;
+            const jobValueMax = document.getElementById("jobValueMax").value;
+            const yearMin = document.getElementById("yearMin").value;
+            const yearMax = document.getElementById("yearMax").value;
+
+
+            if (category) filters.push(`Category: ${category}`);
+            if (neighborhood) filters.push(`Neighborhood: ${neighborhood}`);
+            if (subtype) filters.push(`Type: ${subtype}`);
+            if (searchQuery) filters.push(`Work: "${searchQuery}"`);
+            if (addressQuery) filters.push(`Address: "${addressQuery}"`);
+            if (contractorNameQuery) filters.push(`Contractor: "${contractorNameQuery}"`); // NEW FIELD
+            if (jobValueMin) filters.push(`Job Value Min: $${jobValueMin}`);
+            if (jobValueMax) filters.push(`Job Value Max: $${jobValueMax}`);
+            if (yearMin !== '2000-01-01' && yearMin !== "") filters.push(`From Date: ${yearMin}`);
+            if (yearMax !== today && yearMax !== "") filters.push(`To Date: ${yearMax}`);
+
+
+            // Map sort values to user-friendly labels (excluding default "Newest First")
+            const sortLabels = {
+                "FILE_DATE ASC": "Oldest First",
+                "JOB_VALUE DESC": "Highest Job Value First",
+                "JOB_VALUE ASC": "Lowest Job Value First"
+            };
+
+            if (sortLabels[sortOrder]) {
+                filters.push(`Sorted: ${sortLabels[sortOrder]}`);
+            }
+
+            const summaryText = filters.length ? `Filtering by: ${filters.join(", ")}` : "";
+
+            document.getElementById("querySummary").innerHTML = summaryText;
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const filterMenu = document.getElementById("filterMenu");
+            const overlay = document.getElementById("overlay");
+            const navbarToggler = document.querySelector(".navbar-toggler");
+
+            document.getElementById("yearMax").value = new Date().toISOString().split("T")[0];
+            document.getElementById("yearMin").value = "2000-01-01";
+
+            // Function to show overlay with fade-in effect
+            function showOverlay() {
+                overlay.style.visibility = "visible";
+                overlay.style.opacity = "1";
+            }
+
+            // Function to hide overlay with fade-out effect
+            function hideOverlay() {
+                overlay.style.opacity = "0";
+                setTimeout(() => {
+                    overlay.style.visibility = "hidden";
+                }, 200); // Matches the CSS transition duration
+            }
+
+            // Show overlay when navbar opens
+            filterMenu.addEventListener("shown.bs.collapse", showOverlay);
+
+            // Hide overlay when navbar closes
+            filterMenu.addEventListener("hidden.bs.collapse", hideOverlay);
+
+            // Close navbar when clicking outside
+            overlay.addEventListener("click", function () {
+                let bsCollapse = new bootstrap.Collapse(filterMenu, {
+                    toggle: false
+                });
+                bsCollapse.hide();
+            });
+
+            // Ensure navbar toggles properly when clicking the button
+            navbarToggler.addEventListener("click", function () {
+                if (filterMenu.classList.contains("show")) {
+                    hideOverlay();
+                } else {
+                    showOverlay();
+                }
+            });
+
+            // Function to trigger search when Enter is pressed
+            function handleEnterKey(event) {
+                if (event.key === "Enter") {
+                    event.preventDefault(); // Prevent default behavior (e.g., moving focus)
+                    searchAndCloseNav(); // Run search instead of moving to the next input
+                }
+            }
+
+            // Apply the event listener to all search inputs
+            document.getElementById("addressSearchInput").addEventListener("keypress", handleEnterKey);
+            document.getElementById("searchInput").addEventListener("keypress", handleEnterKey);
+            document.getElementById("contractorNameInput").addEventListener("keypress", handleEnterKey); // NEW FIELD
+
+            let searchButton = document.querySelector(".btn-primary"); // Select the search button
+            // Add event listener to all input fields inside the navbar
+            document.querySelectorAll("#filterMenu input, #filterMenu select").forEach(element => {
+                element.addEventListener("keypress", handleEnterKey);
+            });
+
+            // --- URL PARAMS: Parse and set filter values if present ---
+            function setFiltersFromUrl() {
+                const params = new URLSearchParams(window.location.search);
+
+                function setValue(id, val) {
+                    if (val !== null && val !== undefined) {
+                        const el = document.getElementById(id);
+                        if (el) el.value = val;
+                    }
+                }
+
+                setValue("searchInput", params.get("search") || "");
+                setValue("addressSearchInput", params.get("address") || "");
+                setValue("contractorNameInput", params.get("contractor") || "");
+                setValue("categoryFilter", params.get("category") || "");
+                setValue("neighborhoodFilter", params.get("neighborhood") || "");
+                setValue("subtypeFilter", params.get("subtype") || "");
+                setValue("jobValueMin", params.get("jobValueMin") || "");
+                setValue("jobValueMax", params.get("jobValueMax") || "");
+                setValue("yearMin", params.get("yearMin") || "");
+                setValue("yearMax", params.get("yearMax") || "");
+                setValue("sortOrder", params.get("sort") || "FILE_DATE DESC");
+            }
+
+            setFiltersFromUrl();
+
+            // --- Optionally, update URL when search is performed ---
+            function updateUrlFromFilters() {
+                const params = new URLSearchParams();
+                function add(id, key, opts = {}) {
+                    const val = document.getElementById(id)?.value;
+                    if (val && (!opts.skipIfDefault || val !== opts.default)) {
+                        params.set(key, val);
+                    }
+                }
+                add("searchInput", "search");
+                add("addressSearchInput", "address");
+                add("contractorNameInput", "contractor");
+                add("categoryFilter", "category");
+                add("neighborhoodFilter", "neighborhood");
+                add("subtypeFilter", "subtype");
+                add("jobValueMin", "jobValueMin");
+                add("jobValueMax", "jobValueMax");
+                add("yearMin", "yearMin");
+                add("yearMax", "yearMax");
+                // Only add sort param if not the default
+                add("sortOrder", "sort", { skipIfDefault: true, default: "FILE_DATE DESC" });
+                const url = window.location.pathname + (params.toString() ? "?" + params.toString() : "");
+                window.history.replaceState({}, "", url);
+            }
+
+            // Call updateUrlFromFilters() whenever a search is performed
+            window.searchAndCloseNav = function () {
+                updateUrlFromFilters();
+                fetchData();
+                // ...existing code for closing navbar...
+                let filterMenu = document.getElementById("filterMenu");
+                let bsCollapse = new bootstrap.Collapse(filterMenu, {
+                    toggle: false
+                });
+                bsCollapse.hide();
+            };
+
+            fetchData();
+            window.addEventListener("scroll", handleScroll);
+            document.querySelectorAll("#filterMenu input, #filterMenu select").forEach(element => {
+                element.addEventListener("input", updateFilterIndicator);
+            });
+            document.querySelectorAll("#filterMenu input, #filterMenu select").forEach(element => {
+                element.addEventListener("input", updateFilterIndicator);
+            });
+
+            let messageIndex = 0;
+            let messageInterval;
+
+            // function startLoadingMessages() {
+            const messageElement = document.getElementById("loadingMessage");
+
+            // Set initial message
+            messageElement.textContent = loadingMessages[messageIndex];
+
+            // Start cycling messages every 5 seconds
+            messageInterval = setInterval(() => {
+                messageElement.style.opacity = 0; // Fade out
+
+                setTimeout(() => {
+                    messageIndex = (messageIndex + 1) % loadingMessages.length;
+                    messageElement.textContent = loadingMessages[messageIndex];
+                    messageElement.style.opacity = 1; // Fade in
+                }, 500); // Matches CSS transition time (0.8s)
+            }, 4500);
+
+            document.getElementById("faqButton").addEventListener("click", function () {
+                logSearchQuery("", "", "", "FAQ Clicked", "", "", 0, false);
+            });
+        });
+
+
+        function updateFilterIndicator() {
+            const filterIndicator = document.getElementById("filterIndicator");
+
+            // Check if any filters are active (not default values)
+            const category = document.getElementById("categoryFilter").value;
+            const neighborhood = document.getElementById("neighborhoodFilter").value;
+            const subtype = document.getElementById("subtypeFilter").value;
+            const searchQuery = document.getElementById("searchInput").value.trim();
+            const addressQuery = document.getElementById("addressSearchInput").value.trim();
+            const contractorNameQuery = document.getElementById("contractorNameInput").value.trim(); // NEW FIELD
+            const jobValueMin = document.getElementById("jobValueMin").value;
+            const jobValueMax = document.getElementById("jobValueMax").value;
+            const yearMin = document.getElementById("yearMin").value;
+            const yearMax = document.getElementById("yearMax").value;
+
+            if (category || neighborhood || subtype || searchQuery || addressQuery || contractorNameQuery || jobValueMin || jobValueMax || (yearMin !== '01/01/2000' && yearMin !== "") || yearMax) {
+                console.log("Filters active");
+                filterIndicator.style.display = "block"; // Show dot
+            } else {
+                console.log("No filters active");
+                filterIndicator.style.display = "none"; // Hide dot
+            }
+        }
+
+
+        // List of friendly loading messages
+        const loadingMessages = [
+            "One moment please...",
+            "Fetching the latest permits...",
+            "Almost there, getting the data...",
+            "Loading... Good things take time!",
+            "Hang tight! We’re pulling the records..."
+        ];
+
+        function activateTooltips() {
+            let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+
+
+        async function logSearchQuery(filterCategory, filterNeighborhood, filterSubtype, searchQuery, addressQuery, contractorNameQuery, sortOrder, resultOffset, append) {
+            const logData = {
+                records: [{
+                    fields: {
+                        "Session UUID": sessionUUID, // Include session ID
+                        "User-Agent": navigator.userAgent, // Browser & device info
+                        "Screen Width": window.screen.width, // User's screen width
+                        "Screen Height": window.screen.height, // User's screen height
+                        "Category": filterCategory || "",
+                        "Neighborhood": filterNeighborhood || "",
+                        "Subtype": filterSubtype || "",
+                        "Search Query": searchQuery.replace(/%/g, "").trim() || "",
+                        "Address Query": addressQuery.replace(/%/g, "").trim() || "",
+                        "Contractor Name Query": contractorNameQuery.replace(/%/g, "").trim() || "", // NEW FIELD
+                        "Sort Order": sortOrder || "",
+                        "Result Offset": resultOffset, // Log pagination offset
+                        "Append": append // Log append status
+                    }
+                }]
+            };
+
+            const url = `https://api.airtable.com/v0/${atob("YXBwd0VsSEZFekFKNWRpRno=")}/Logs`; // Base ID
+            const apiKey = `Bearer ${atob("cGF0RkFucm91UTNYQUZ5VGYuZjM5YzUyOTVjNjYxMDc2Y2EyOTZhNWQyMmEwNWI4NWIxYTFkYzkwYzVmYzIyNjA0MzBkNTdjODUxYTlhNDNkZQ==")}`;
+
+
+
+            fetch(url, {
+                method: "POST",
+                headers: { "Authorization": "Bearer patFAnrouQ3XAFyTf.f39c5295c661076ca296a5d22a05b85b1a1dc90c5fc2260430d57c851aca43de", "Content-Type": "application/json" },
+                body: JSON.stringify(logData)
+            }).then(res => res.json())
+                .then(data => console.log("Logged:", data))
+                .catch(err => console.error("Log Error:", err));
+        }
+
+        function generateUUID() {
+            if (window.crypto && crypto.randomUUID) {
+                return crypto.randomUUID(); // Native method (modern browsers)
+            } else {
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                    const r = (Math.random() * 16) | 0,
+                        v = c === 'x' ? r : (r & 0x3) | 0x8;
+                    return v.toString(16);
+                });
+            }
+        }
+
+
+        async function fetchContractorDetails(contractorBusinessName, contractorHumanName) {
+            document.getElementById("contractorError").style.display = "none"; // Hide error initially
+            document.getElementById("contractorBusinessName").innerHTML = contractorBusinessName
+                ? `<a href="https://services3.arcgis.com/dty2kHktVXHrqO8i/arcgis/rest/services/Active_Contractor_Registrations/FeatureServer/0/query?where=BUSINESS_NAME='${encodeURIComponent(contractorBusinessName)}'&outFields=*&f=html" target="_blank">
+        ${contractorBusinessName}
+       </a>`
+                : "N/A";
+            document.getElementById("contractorHumanName").textContent = contractorHumanName || "N/A";
+            document.getElementById("contractorId").textContent = "Loading...";
+            document.getElementById("contractorAddress").textContent = "";
+            document.getElementById("contractorPhone").textContent = "";
+
+            if (!contractorBusinessName) {
+                document.getElementById("contractorError").style.display = "block";
+                document.getElementById("contractorId").textContent = "N/A";
+                return;
+            }
+
+            // Escape single quotes for SQL
+            const safeBusinessName = contractorBusinessName.replace(/'/g, "''");
+
+            const apiUrl = "https://services3.arcgis.com/dty2kHktVXHrqO8i/arcgis/rest/services/Active_Contractor_Registrations/FeatureServer/0/query";
+            const params = new URLSearchParams({
+                where: `BUSINESS_NAME='${safeBusinessName}'`,
+                outFields: "B1_ALT_ID,B1_ADDRESS1,B1_ADDRESS2,B1_CITY,B1_STATE,B1_ZIP,B1_PHONE1,RRP_CERTIFICATION_NO",
+                f: "json"
+            });
+
+            try {
+                const response = await fetch(`${apiUrl}?${params}`);
+
+                // Check if response is OK
+                if (!response.ok) {
+                    throw new Error(`HTTP Error! Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Validate that 'features' exists
+                if (!data || !data.features || data.features.length === 0) {
+                    throw new Error("No contractor data found.");
+                }
+
+                const contractor = data.features[0].attributes;
+
+                document.getElementById("contractorId").textContent = contractor.B1_ALT_ID || "N/A";
+
+                document.getElementById("contractorAddress").textContent =
+                    [contractor.B1_ADDRESS1, contractor.B1_ADDRESS2, contractor.B1_CITY, contractor.B1_STATE, contractor.B1_ZIP]
+                        .map(field => field ? field.trim() : "")
+                        .filter(field => field !== "")
+                        .join(", ") || "N/A";
+
+                document.getElementById("contractorPhone").textContent = contractor.B1_PHONE1?.trim() || "N/A";
+
+                // Handle RRP Certification
+                let rrpCert = contractor.RRP_CERTIFICATION_NO?.trim();
+                if (!rrpCert) {
+                    document.getElementById("contractorRRP").textContent = "NO LEAD SAFE RRP INFO";
+                    document.getElementById("rrpLearnMore").style.display = "inline"; // Show link if not certified
+                } else {
+                    document.getElementById("contractorRRP").textContent = rrpCert;
+                }
+                console.log("rrpCert: ", rrpCert);
+
+            } catch (error) {
+                console.error("Error fetching contractor data:", error.message);
+                document.getElementById("contractorError").style.display = "block";
+                document.getElementById("contractorId").textContent = "Error";
+            }
+        } 
+    </script>
+</head>
+
+<body class="container mt-4">
+    <div id="overlay"></div>
+    <nav class="navbar navbar-light bg-light fixed-top">
+        <div class="container d-flex justify-content-between align-items-center">
+            <a class="navbar-brand" href="index.html">🛠️ Cleveland Building Permits</a>
+            <button id="filterToggle" class="navbar-toggler position-relative" type="button" data-bs-toggle="collapse"
+                data-bs-target="#filterMenu" aria-controls="filterMenu" aria-expanded="false"
+                aria-label="Toggle navigation">
+                <i class="bi bi-funnel"></i>
+                <span id="filterIndicator" class="filter-dot"></span> <!-- Small colored dot -->
+            </button>
+            <div class="collapse navbar-collapse" id="filterMenu">
+                <div class="navbar-nav">
+                    <div class="input-group me-2 mb-2">
+                        <label for="sortOrder" class="input-group-text"><i
+                                class="bi bi-arrow-down-up"></i>&nbsp;&nbsp;Sort By </label>
+                        <select id="sortOrder" class="form-select" onchange="fetchData()">
+                            <option value="FILE_DATE DESC">Newest First</option>
+                            <option value="FILE_DATE ASC">Oldest First</option>
+                            <option value="JOB_VALUE DESC">Highest Job Value First</option>
+                            <option value="JOB_VALUE ASC">Lowest Job Value First</option>
+                        </select>
+                    </div>
+                    <div class="input-group me-2 mb-2">
+                        <input type="text" id="searchInput" class="form-control"
+                            placeholder="Search work description or Permit Number">
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#wildcardHelpModal"
+                            class="btn btn-outline-secondary" title="Search Help">?</a>
+                    </div>
+                    <select id="neighborhoodFilter" class="form-select me-2 mb-2" onchange="fetchData()">
+                        <option value="">All Neighborhoods</option>
+                        <option value="Bellaire-Puritas">Bellaire-Puritas</option>
+                        <option value="Broadway-Slavic Village">Broadway-Slavic Village</option>
+                        <option value="Brooklyn Centre">Brooklyn Centre</option>
+                        <option value="Buckeye-Shaker Square">Buckeye-Shaker Square</option>
+                        <option value="Buckeye-Woodhill">Buckeye-Woodhill</option>
+                        <option value="Central">Central</option>
+                        <option value="Clark-Fulton">Clark-Fulton</option>
+                        <option value="Collinwood-Nottingham">Collinwood-Nottingham</option>
+                        <option value="Cudell">Cudell</option>
+                        <option value="Cuyahoga Valley">Cuyahoga Valley</option>
+                        <option value="Detroit Shoreway">Detroit Shoreway</option>
+                        <option value="Downtown">Downtown</option>
+                        <option value="Edgewater">Edgewater</option>
+                        <option value="Euclid-Green">Euclid-Green</option>
+                        <option value="Fairfax">Fairfax</option>
+                        <option value="Glenville">Glenville</option>
+                        <option value="Goodrich-Kirtland Pk">Goodrich-Kirtland Pk</option>
+                        <option value="Hopkins">Hopkins</option>
+                        <option value="Hough">Hough</option>
+                        <option value="Jefferson">Jefferson</option>
+                        <option value="Kamm's">Kamm's</option>
+                        <option value="Kinsman">Kinsman</option>
+                        <option value="Lee-Harvard">Lee-Harvard</option>
+                        <option value="Lee-Seville">Lee-Seville</option>
+                        <option value="Mount Pleasant">Mount Pleasant</option>
+                        <option value="North Shore Collinwood">North Shore Collinwood</option>
+                        <option value="Ohio City">Ohio City</option>
+                        <option value="Old Brooklyn">Old Brooklyn</option>
+                        <option value="St.Clair-Superior">St.Clair-Superior</option>
+                        <option value="Stockyards">Stockyards</option>
+                        <option value="Tremont">Tremont</option>
+                        <option value="Union Miles">Union Miles</option>
+                        <option value="University">University</option>
+                        <option value="West Boulevard">West Boulevard</option>
+                    </select>
+                    <select id="categoryFilter" class="form-select me-2 mb-2" onchange="fetchData()">
+                        <option value="">All Permit Categories</option>
+                        <option value="Board-ups">Board-ups</option>
+                        <option value="Electrical">Electrical</option>
+                        <option value="HVAC and Refrigeration">HVAC and Refrigeration</option>
+                        <option value="New">New</option>
+                        <option value="Plumbing">Plumbing</option>
+                        <option value="Repair or Alteration">Repair or Alteration</option>
+                    </select>
+                    <select id="subtypeFilter" class="form-select mb-2" onchange="fetchData()">
+                        <option value="">Residential & Commercial 🏠🏢</option>
+                        <option value="Residential">Residential Only 🏠</option>
+                        <option value="Commercial">Commercial Only 🏢</option>
+                    </select>
+                    <div class="input-group me-2 mb-2">
+                        <input id="addressSearchInput" type="text" class="form-control" placeholder="Search Address"
+                            onchange="resetAndFetchData()">
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#wildcardHelpModal"
+                            class="btn btn-outline-secondary" title="Search Help">?</a>
+                    </div>
+                    <!-- NEW CONTRACTOR NAME SEARCH FIELD -->
+                    <div class="input-group me-2 mb-2">
+                        <input type="text" id="contractorNameInput" class="form-control"
+                            placeholder="Search Contractor Name">
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#wildcardHelpModal"
+                            class="btn btn-outline-secondary" title="Search Help">?</a>
+                    </div>
+                    <div class="d-flex gap-2 me-2 mb-2">
+                        <input type="number" id="jobValueMin" placeholder="Min Job Value ($)" class="form-control">
+                        <input type="number" id="jobValueMax" placeholder="Max Job Value ($)" class="form-control">
+                    </div>
+                    <div class="d-flex gap-2 me-2 mb-2">
+                        <input type="date" id="yearMin" placeholder="01/01/2000" class="form-control">
+                        <input type="date" id="yearMax" class="form-control">
+                    </div>
+                    <div class="d-grid gap-2 mt-2">
+                        <button class="btn btn-primary w-100 mb-2" onclick="searchAndCloseNav()">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                        <button class="btn btn-danger w-100 mb-2" onclick="clearFilters()">
+                            <i class="bi bi-x-circle"></i> Clear filters
+                        </button>
+                        <button id="faqButton" class="btn btn-outline-success w-100 mb-2" data-bs-toggle="modal"
+                            data-bs-target="#faqModal">
+                            <i class="bi bi-question-circle"></i> FAQ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <div id="querySummary" class="text-muted small mb-2 query-summary"></div>
+    <div class="content-container" id="dataContainer"></div>
+    <div id="bottomLoadingSpinner" class="text-center mt-3" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading more...</span>
+        </div>
+        <em>
+            <p id="loadingMessage" class="mt-2">One moment please...</p>
+        </em>
+    </div>
+    <div id="noMoreResults" class="text-center mt-3" style="display: none;">
+        <p>No more results available.</p>
+    </div>
+
+    <!-- FAQ Modal -->
+    <div class="modal fade" id="faqModal" tabindex="-1" aria-labelledby="faqModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="faqModalLabel">Frequently Asked Questions</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body overflow-auto">
+                    <h6>1. What is the purpose of this website?</h6>
+                    <p>This website allows you to quickly learn about permitted work planned in your area. You can see
+                        details such as the type of work, estimated cost, and contractors involved.</p>
+
+                    <h6>2. Where does the data come from?</h6>
+                    <p>The data is provided by the <strong>City of Cleveland's Open Data Portal</strong>. We greatly
+                        appreciate the City for making this information publicly available.</p>
+                    <p><a href="https://data.clevelandohio.gov/datasets/ClevelandGIS::building-permits/about"
+                            target="_blank">View the Open Data portal</a></p>
+                    <p>Permits can also be viewed through the official <strong>City of Cleveland "Accela" Permit Search
+                            Portal</strong>:</p>
+                    <p><a href="https://aca-prod.accela.com/COC/Cap/CapHome.aspx?module=BuildingHousing&TabName=BuildingHousing&TabList=Home%7C0%7CBuildingHousing%7C1%7CLicenses%7C2%7CPublicHealth%7C3%7CPublicSafety%7C4%7CPublicService%7C5%7CPlanning%7C6%7CCurrentTabIndex%7C1"
+                            target="_blank">
+                            Click here to search permits via the City's Accela search portal
+                        </a></p>
+
+                    <h6>3. How does this website work?</h6>
+                    <p>This site pulls data directly from the City's Open Data Portal and presents it in an easy-to-use
+                        interface. Data is updated in real-time as new permits are issued.</p>
+
+                    <h6>4. Who built this project?</h6>
+                    <p>This project was created by <strong>Angelo Trivisonno</strong>. You can find the source code and
+                        contribute to the project on GitHub:</p>
+                    <p><a href="https://github.com/trivisonno/building-permit-v1" target="_blank">View the GitHub
+                            repository</a></p>
+
+                    <h6>5. How do I search for permits?</h6>
+                    <p>Enter a work description or address in the search filters, then click the "Search" button. You
+                        can also filter by permit category, neighborhood, and type.</p>
+
+                    <h6>6. How do I filter results?</h6>
+                    <p>Use the dropdown filters to refine results based on Permit Category, Neighborhood, and Permit
+                        Type.
+                    </p>
+
+                    <h6>7. Why am I not seeing any results?</h6>
+                    <p>Try clearing filters or adjusting your search terms. Data availability depends on what the City
+                        has
+                        published.</p>
+
+                    <h6>8. How do I load more results?</h6>
+                    <p>Scroll to the bottom of the page, and if more results are available, they will load
+                        automatically.
+                    </p>
+
+                    <h6>9. How do I reset my filters?</h6>
+                    <p>Click the red "Clear" button to reset all filters and search fields.</p>
+
+                    <h6>10. Will there be more functionality in the future?</h6>
+                    <p>Yes! As the City continues to expand the data it shares, we will add more features to improve
+                        accessibility and insights.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Contractor Details Modal -->
+    <div class="modal fade" id="contractorModal" tabindex="-1" aria-labelledby="contractorModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="contractorModalLabel">Contractor Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Business Name:</strong> <span id="contractorBusinessName"></span></p>
+                    <p><strong>Contractor Name:</strong> <span id="contractorHumanName"></span></p>
+                    <p><strong>Registration ID:</strong> <span id="contractorId"></span></p>
+                    <p><strong>Address:</strong> <span id="contractorAddress"></span></p>
+                    <p><strong>Phone:</strong> <span id="contractorPhone"></span></p>
+                    <p><strong>Lead Safe:</strong> <span id="contractorRRP"></span> <a id="rrpLearnMore"
+                            href="https://leadsafecle.org/property-owners/find-lead-safe-worker" target="_blank"
+                            style="display: none;">
+                            <br><small><em>(Learn about Lead Safe RRP)</em></small>
+                        </a></p>
+                    <div id="contractorError" class="text-danger" style="display: none;">Contractor details not found.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Wildcard Help Modal -->
+    <div class="modal fade" id="wildcardHelpModal" tabindex="-1" aria-labelledby="wildcardHelpModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="wildcardHelpModalLabel">Use Search with Wildcards</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Note:</strong> You don’t need to add wildcards at the beginning or end of your search—our
+                        system does this for you automatically.</p>
+                    <p>However, you can use special symbols to refine your search:</p>
+                    <ul>
+                        <li><strong><code>%</code></strong> – Represents zero or more characters
+                            <br><em>Example:</em> <code>br%</code> finds <code>br</code>, <code>bracelet</code>,
+                            <code>break</code>, and
+                            <code>brink</code>.
+                        </li>
+                        <li><strong><code>_</code></strong> – Represents a single character
+                            <br><em>Example:</em> <code>f_r</code> finds <code>far</code>, <code>fir</code>,
+                            <code>for</code>, and
+                            <code>fur</code>.
+                        </li>
+                        <li><strong><code>[]</code></strong> – Represents any single character within the brackets
+                            <br><em>Example:</em> <code>s[ia]nk</code> finds <code>sink</code> and <code>sank</code>,
+                            but not
+                            <code>sunk</code>.
+                        </li>
+                        <li><strong><code>[^]</code></strong> – Excludes characters inside the brackets
+                            <br><em>Example:</em> <code>s[^ia]nk</code> finds <code>sunk</code>, but not
+                            <code>sink</code> or
+                            <code>sank</code>.
+                        </li>
+                        <li><strong><code>[-]</code></strong> – Represents any character within the specified range
+                            <br><em>Example:</em> <code>s[e-o]n</code> finds <code>sin</code> and <code>son</code>, but
+                            not
+                            <code>sun</code>.
+                        </li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
