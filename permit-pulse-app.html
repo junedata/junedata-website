@@ -1,15 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <!-- Copyright 2025 June Data LLC -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🛠️ Cleveland Building Permits</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
-    <script data-goatcounter="https://building-permit-v1.goatcounter.com/count" async
-        src="//gc.zgo.at/count.js"></script>
+    <script data-goatcounter="https://building-permit-v1.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <style>
         #loadingSpinner {
@@ -28,7 +25,6 @@
         .content-container {
             padding-top: 0px;
         }
-
         #overlay {
             position: fixed;
             top: 0;
@@ -55,11 +51,9 @@
             right: 5px;
             width: 8px;
             height: 8px;
-            background-color: red;
-            /* Change color if needed */
+            background-color: red; /* Change color if needed */
             border-radius: 50%;
-            display: none;
-            /* Hide by default */
+            display: none; /* Hide by default */
         }
 
         #loadingMessage {
@@ -68,12 +62,9 @@
         }
 
         .permit-link {
-            text-decoration: underline;
-            /* Underline the link */
-            color: inherit;
-            /* Keep the same color as surrounding text */
-            cursor: pointer;
-            /* Indicate it's clickable */
+            text-decoration: underline; /* Underline the link */
+            color: inherit; /* Keep the same color as surrounding text */
+            cursor: pointer; /* Indicate it's clickable */
         }
 
         @media (max-width: 767.98px) {
@@ -131,7 +122,7 @@
                 yearMax
             });
 
-
+            
 
             // Show the bottom spinner when appending more data
             if (append) {
@@ -164,7 +155,7 @@
 
             const url = "https://services3.arcgis.com/dty2kHktVXHrqO8i/arcgis/rest/services/Building_Permits/FeatureServer/0/query";
             let whereClauses = ["1=1"];
-
+            
             if (filterCategory) whereClauses.push(`PERMIT_CATEGORY='${filterCategory.replace(/'/g, "''")}'`);
             if (filterNeighborhood) whereClauses.push(`DW_Neighborhood='${filterNeighborhood.replace(/'/g, "''")}'`);
             if (filterSubtype) whereClauses.push(`PERMIT_SUBTYPE='${filterSubtype.replace(/'/g, "''")}'`);
@@ -175,7 +166,7 @@
                 let safeSearch = searchQuery.replace(/'/g, "''");
                 whereClauses.push(`(WORK_DESCRIPTION LIKE '%${safeSearch}%' OR PERMIT_ID LIKE '%${safeSearch}%')`);
             } else if (searchQuery) {
-                whereClauses.push(`WORK_DESCRIPTION LIKE '%${searchQuery.replace(/'/g, "''")}%'`);
+                whereClauses.push(`WORK_DESCRIPTION LIKE '%${searchQuery.replace(/'/g, "''" )}%'`);
             }
 
             if (addressQuery) whereClauses.push(`PRIMARY_ADDRESS LIKE '%${addressQuery.replace(/'/g, "''")}%'`);
@@ -184,11 +175,11 @@
             if (jobValueMax) whereClauses.push(`JOB_VALUE <= ${jobValueMax}`);
             if (yearMin) whereClauses.push(`FILE_DATE >= '${yearMin}'`);
             if (yearMax) whereClauses.push(`FILE_DATE <= '${yearMax}'`);
-
-
+            
+            
             const params = new URLSearchParams({
                 where: whereClauses.join(" AND "),
-                outFields: "PERMIT_ID,PRIMARY_ADDRESS,PERMIT_SUBTYPE,PERMIT_CATEGORY,WORK_DESCRIPTION,CONTRACTOR_NAME,CONTRATOR_BUSINESS_NAME,JOB_VALUE,FILE_DATE,PARCEL_NUMBER,DW_Ward,DW_Neighborhood,TOTAL_FEES_PAID",
+                outFields: "PERMIT_ID,PRIMARY_ADDRESS,PERMIT_SUBTYPE,PERMIT_CATEGORY,WORK_DESCRIPTION,CONTRACTOR_NAME,CONTRATOR_BUSINESS_NAME,JOB_VALUE,FILE_DATE,PARCEL_NUMBER,DW_Ward,DW_Neighborhood,TOTAL_FEES_PAID,ACCELA_CITIZEN_ACCESS_URL",
                 orderByFields: sortOrder, // Use selected sorting order
                 resultOffset: currentPage * recordsPerPage,
                 resultRecordCount: recordsPerPage,
@@ -196,10 +187,10 @@
             });
 
             // Log the search if any filter is used
-            if (filterCategory || filterNeighborhood || filterSubtype || searchQuery !== "%%" || addressQuery !== "%" || contractorNameQuery !== "" || sortOrder !== "FILE_DATE DESC" || jobValueMin || jobValueMax || (yearMin !== "01/01/2000" && yearMin !== "") || yearMax) {
+            if (filterCategory || filterNeighborhood || filterSubtype || searchQuery !== "%%" || addressQuery !== "%" || contractorNameQuery !== "" || sortOrder !== "FILE_DATE DESC" || jobValueMin || jobValueMax || (yearMin !== "01/01/2000" && yearMin !== "" ) || yearMax) {
                 logSearchQuery(filterCategory, filterNeighborhood, filterSubtype, searchQuery, addressQuery, contractorNameQuery, sortOrder, currentPage * recordsPerPage, append);
             }
-
+            
             const response = await fetch(`${url}?${params}`);
             const data = await response.json();
 
@@ -221,77 +212,77 @@
         }
 
         function highlightMatch(text, searchTerm) {
-            if (!searchTerm) return text; // No highlight if search is empty
+                if (!searchTerm) return text; // No highlight if search is empty
 
-            // Escape special regex characters in searchTerm
-            let escapedTerm = searchTerm.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+                // Escape special regex characters in searchTerm
+                let escapedTerm = searchTerm.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
 
-            // Replace matches with a span-wrapped highlighted version
-            let regex = new RegExp(escapedTerm, "gi");
-            return text.replace(regex, (match) => `<span class="highlight">${match}</span>`);
-        }
+                // Replace matches with a span-wrapped highlighted version
+                let regex = new RegExp(escapedTerm, "gi");
+                return text.replace(regex, (match) => `<span class="highlight">${match}</span>`);
+            }
 
-        function displayRecords() {
-            const container = document.getElementById("dataContainer");
-            container.innerHTML = "";
+            function displayRecords() {
+                const container = document.getElementById("dataContainer");
+                container.innerHTML = "";
 
-            // Get search input values
-            const searchQuery = document.getElementById("searchInput").value.trim();
-            const addressQuery = document.getElementById("addressSearchInput").value.trim();
+                // Get search input values
+                const searchQuery = document.getElementById("searchInput").value.trim();
+                const addressQuery = document.getElementById("addressSearchInput").value.trim();
 
-            // Permit number pattern
-            let searchPattern = /^[BEH]\d+$/i;
+                // Permit number pattern
+                let searchPattern = /^[BEH]\d+$/i;
 
-            allRecords.forEach(record => {
-                // Only take substring before "CLEVELAND, OH" (case-insensitive)
-                let addressCleaned = record.PRIMARY_ADDRESS;
-                if (addressCleaned) {
-                    let idx = addressCleaned.toUpperCase().indexOf(", CLEVELAND, OH");
-                    if (idx !== -1) {
-                        addressCleaned = addressCleaned.substring(0, idx).trim();
+                allRecords.forEach(record => {
+                    // Only take substring before "CLEVELAND, OH" (case-insensitive)
+                    let addressCleaned = record.PRIMARY_ADDRESS;
+                    if (addressCleaned) {
+                        let idx = addressCleaned.toUpperCase().indexOf(", CLEVELAND, OH");
+                        if (idx !== -1) {
+                            addressCleaned = addressCleaned.substring(0, idx).trim();
+                        }
                     }
-                }
-                let formattedJobValue = record.JOB_VALUE ? `$${Math.round(record.JOB_VALUE).toLocaleString()}` : "$-";
+                    let formattedJobValue = record.JOB_VALUE ? `$${Math.round(record.JOB_VALUE).toLocaleString()}` : "$-";
 
-                let contractorBusinessName = record.CONTRATOR_BUSINESS_NAME?.trim() || "";
-                let contractorHumanName = record.CONTRACTOR_NAME?.trim() || "";
+                    let contractorBusinessName = record.CONTRATOR_BUSINESS_NAME?.trim() || "";
+                    let contractorHumanName = record.CONTRACTOR_NAME?.trim() || "";
 
-                // Escape apostrophes for JS string literal in onclick
-                function jsEscape(str) {
-                    return (str || "").replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                }
+                    // Escape apostrophes for JS string literal in onclick
+                    function jsEscape(str) {
+                        return (str || "").replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    }
 
-                let contractorLink = contractorBusinessName !== '-'
-                    ? `<a href="#" class="contractor-link" data-bs-toggle="modal" data-bs-target="#contractorModal" onclick="fetchContractorDetails('${jsEscape(contractorBusinessName)}', '${jsEscape(contractorHumanName)}')">${contractorBusinessName}</a>`
-                    : '-';
+                    let contractorLink = contractorBusinessName !== '-'
+                        ? `<a href="#" class="contractor-link" data-bs-toggle="modal" data-bs-target="#contractorModal" onclick="fetchContractorDetails('${jsEscape(contractorBusinessName)}', '${jsEscape(contractorHumanName)}')">${contractorBusinessName}</a>`
+                        : '-';
 
-                // Determine subtype icon with tooltip
-                let subtypeIcon = '';
-                if (record.PERMIT_SUBTYPE === "Residential") {
-                    subtypeIcon = `<i class="bi bi-house-fill text-success permit-subtype" data-bs-toggle="tooltip" title="Residential"></i>`;
-                } else if (record.PERMIT_SUBTYPE === "Commercial") {
-                    subtypeIcon = `<i class="bi bi-building-fill text-primary permit-subtype" data-bs-toggle="tooltip" title="Commercial"></i>`;
-                }
+                    // Determine subtype icon with tooltip
+                    let subtypeIcon = '';
+                    if (record.PERMIT_SUBTYPE === "Residential") {
+                        subtypeIcon = `<i class="bi bi-house-fill text-success permit-subtype" data-bs-toggle="tooltip" title="Residential"></i>`;
+                    } else if (record.PERMIT_SUBTYPE === "Commercial") {
+                        subtypeIcon = `<i class="bi bi-building-fill text-primary permit-subtype" data-bs-toggle="tooltip" title="Commercial"></i>`;
+                    }
 
-                // Highlight matches in WORK_DESCRIPTION and ADDRESS
-                let highlightedDescription = highlightMatch(record.WORK_DESCRIPTION || 'No description', searchQuery);
-                let highlightedAddress = highlightMatch(addressCleaned, addressQuery);
+                    // Highlight matches in WORK_DESCRIPTION and ADDRESS
+                    let highlightedDescription = highlightMatch(record.WORK_DESCRIPTION || 'No description', searchQuery);
+                    let highlightedAddress = highlightMatch(addressCleaned, addressQuery);
 
-                // Highlight Permit Number if search matches permit number pattern
-                let permitIdDisplay = record.PERMIT_ID || 'N/A';
-                if (searchQuery && searchPattern.test(searchQuery)) {
-                    permitIdDisplay = highlightMatch(permitIdDisplay, searchQuery);
-                }
+                    // Highlight Permit Number if search matches permit number pattern
+                    let permitIdDisplay = record.PERMIT_ID || 'N/A';
+                    if (searchQuery && searchPattern.test(searchQuery)) {
+                        permitIdDisplay = highlightMatch(permitIdDisplay, searchQuery);
+                    }
 
-                // Construct the ArcGIS API link for the permit ID
-                const permitApiUrl = `https://services3.arcgis.com/dty2kHktVXHrqO8i/arcgis/rest/services/Building_Permits/FeatureServer/0/query?where=PERMIT_ID+%3D+%27${encodeURIComponent(record.PERMIT_ID)}%27&objectIds=&resultType=none&outFields=*&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnDistinctValues=false&cacheHint=false&collation=&orderByFields=FILE_DATE+DESC&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&sqlFormat=none&f=html&token=`;
+                    // Construct the ArcGIS API link for the permit ID
+                    const permitApiUrl = record.ACCELA_CITIZEN_ACCESS_URL;
 
-                // Format fees paid
-                let feesPaid = (typeof record.TOTAL_FEES_PAID === "number" && !isNaN(record.TOTAL_FEES_PAID))
-                    ? `$${record.TOTAL_FEES_PAID.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                    : "$-";
+                    // Format fees paid
+                    let feesPaid = (typeof record.TOTAL_FEES_PAID === "number" && !isNaN(record.TOTAL_FEES_PAID))
+                        ? `$${record.TOTAL_FEES_PAID.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                        : "$-";
 
-                container.innerHTML += `
+                    container.innerHTML += `
                         <div class="card mb-3">
                             <!-- Top section (Address) -->
                             <div class="card-header bg-light">
@@ -312,23 +303,24 @@
                                 <small class="text-muted flex-grow-1">
                                     ${subtypeIcon} Permit 
                                     <a href="${permitApiUrl}" target="_blank" class="permit-link">${permitIdDisplay}</a> | 
-                                    Filed ${new Date(record.FILE_DATE + (new Date().getTimezoneOffset() * 60000)).toLocaleDateString("en-US", { timeZone: "America/New_York" })}
+                                    Filed ${new Date(record.FILE_DATE + (new Date().getTimezoneOffset() * 60000)).toLocaleDateString("en-US", { timeZone: "America/New_York"})}
                                 </small>
                                 <small class="text-muted ms-2 fees-paid d-none d-md-inline" style="white-space:nowrap;">
                                     Fees Paid: ${feesPaid}
-                                    ${(typeof record.TOTAL_FEES_PAID === "number" && typeof record.JOB_VALUE === "number" && record.JOB_VALUE > 0)
-                        ? ` (${((record.TOTAL_FEES_PAID / record.JOB_VALUE) * 100).toFixed(1)}%)`
-                        : ""
-                    }
+                                    ${
+                                        (typeof record.TOTAL_FEES_PAID === "number" && typeof record.JOB_VALUE === "number" && record.JOB_VALUE > 0)
+                                            ? ` (${((record.TOTAL_FEES_PAID / record.JOB_VALUE) * 100).toFixed(1)}%)`
+                                            : ""
+                                    }
                                 </small>
                             </div>
                         </div>`;
-            });
+                });
 
 
-            // Activate Bootstrap tooltips after the elements are added to the DOM
-            activateTooltips();
-        }
+                // Activate Bootstrap tooltips after the elements are added to the DOM
+                activateTooltips();
+            }
 
         let scrollTimeout;
 
@@ -349,16 +341,16 @@
         }
 
         function searchAndCloseNav() {
-            updateUrlFromFilters();
-            fetchData(); // Run the search query
+                updateUrlFromFilters();
+                fetchData(); // Run the search query
 
-            // Close the navbar properly
-            let filterMenu = document.getElementById("filterMenu");
-            let bsCollapse = new bootstrap.Collapse(filterMenu, {
-                toggle: false
-            });
-            bsCollapse.hide();
-        }
+                // Close the navbar properly
+                let filterMenu = document.getElementById("filterMenu");
+                let bsCollapse = new bootstrap.Collapse(filterMenu, {
+                    toggle: false
+                });
+                bsCollapse.hide();
+            }
 
         function clearFilters() {
             // Reset all inputs and selects
@@ -395,7 +387,7 @@
             const jobValueMax = document.getElementById("jobValueMax").value;
             const yearMin = document.getElementById("yearMin").value;
             const yearMax = document.getElementById("yearMax").value;
-
+            
 
             if (category) filters.push(`Category: ${category}`);
             if (neighborhood) filters.push(`Neighborhood: ${neighborhood}`);
@@ -541,7 +533,7 @@
             }
 
             // Call updateUrlFromFilters() whenever a search is performed
-            window.searchAndCloseNav = function () {
+            window.searchAndCloseNav = function() {
                 updateUrlFromFilters();
                 fetchData();
                 // ...existing code for closing navbar...
@@ -583,35 +575,35 @@
 
             document.getElementById("faqButton").addEventListener("click", function () {
                 logSearchQuery("", "", "", "FAQ Clicked", "", "", 0, false);
-            });
+            });  
         });
 
 
         function updateFilterIndicator() {
-            const filterIndicator = document.getElementById("filterIndicator");
+                const filterIndicator = document.getElementById("filterIndicator");
 
-            // Check if any filters are active (not default values)
-            const category = document.getElementById("categoryFilter").value;
-            const neighborhood = document.getElementById("neighborhoodFilter").value;
-            const subtype = document.getElementById("subtypeFilter").value;
-            const searchQuery = document.getElementById("searchInput").value.trim();
-            const addressQuery = document.getElementById("addressSearchInput").value.trim();
-            const contractorNameQuery = document.getElementById("contractorNameInput").value.trim(); // NEW FIELD
-            const jobValueMin = document.getElementById("jobValueMin").value;
-            const jobValueMax = document.getElementById("jobValueMax").value;
-            const yearMin = document.getElementById("yearMin").value;
-            const yearMax = document.getElementById("yearMax").value;
+                // Check if any filters are active (not default values)
+                const category = document.getElementById("categoryFilter").value;
+                const neighborhood = document.getElementById("neighborhoodFilter").value;
+                const subtype = document.getElementById("subtypeFilter").value;
+                const searchQuery = document.getElementById("searchInput").value.trim();
+                const addressQuery = document.getElementById("addressSearchInput").value.trim();
+                const contractorNameQuery = document.getElementById("contractorNameInput").value.trim(); // NEW FIELD
+                const jobValueMin = document.getElementById("jobValueMin").value;
+                const jobValueMax = document.getElementById("jobValueMax").value;
+                const yearMin = document.getElementById("yearMin").value;
+                const yearMax = document.getElementById("yearMax").value;
 
-            if (category || neighborhood || subtype || searchQuery || addressQuery || contractorNameQuery || jobValueMin || jobValueMax || (yearMin !== '01/01/2000' && yearMin !== "") || yearMax) {
-                console.log("Filters active");
-                filterIndicator.style.display = "block"; // Show dot
-            } else {
-                console.log("No filters active");
-                filterIndicator.style.display = "none"; // Hide dot
+                if (category || neighborhood || subtype || searchQuery || addressQuery || contractorNameQuery || jobValueMin || jobValueMax || (yearMin !== '01/01/2000' && yearMin !== "") || yearMax ) {
+                    console.log("Filters active");
+                    filterIndicator.style.display = "block"; // Show dot
+                } else {
+                    console.log("No filters active");
+                    filterIndicator.style.display = "none"; // Hide dot
+                }
             }
-        }
 
-
+        
         // List of friendly loading messages
         const loadingMessages = [
             "One moment please...",
@@ -620,153 +612,150 @@
             "Loading... Good things take time!",
             "Hang tight! We’re pulling the records..."
         ];
-
+    
         function activateTooltips() {
-            let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                new bootstrap.Tooltip(tooltipTriggerEl);
-            });
-        }
+                let tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                    new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+            }
 
 
         async function logSearchQuery(filterCategory, filterNeighborhood, filterSubtype, searchQuery, addressQuery, contractorNameQuery, sortOrder, resultOffset, append) {
-            const logData = {
-                records: [{
-                    fields: {
-                        "Session UUID": sessionUUID, // Include session ID
-                        "User-Agent": navigator.userAgent, // Browser & device info
-                        "Screen Width": window.screen.width, // User's screen width
-                        "Screen Height": window.screen.height, // User's screen height
-                        "Category": filterCategory || "",
-                        "Neighborhood": filterNeighborhood || "",
-                        "Subtype": filterSubtype || "",
-                        "Search Query": searchQuery.replace(/%/g, "").trim() || "",
-                        "Address Query": addressQuery.replace(/%/g, "").trim() || "",
-                        "Contractor Name Query": contractorNameQuery.replace(/%/g, "").trim() || "", // NEW FIELD
-                        "Sort Order": sortOrder || "",
-                        "Result Offset": resultOffset, // Log pagination offset
-                        "Append": append // Log append status
+                const logData = {
+                    records: [{
+                        fields: {
+                            "Session UUID": sessionUUID, // Include session ID
+                            "User-Agent": navigator.userAgent, // Browser & device info
+                            "Screen Width": window.screen.width, // User's screen width
+                            "Screen Height": window.screen.height, // User's screen height
+                            "Category": filterCategory || "",
+                            "Neighborhood": filterNeighborhood || "",
+                            "Subtype": filterSubtype || "",
+                            "Search Query": searchQuery.replace(/%/g, "").trim() || "",
+                            "Address Query": addressQuery.replace(/%/g, "").trim() || "",
+                            "Contractor Name Query": contractorNameQuery.replace(/%/g, "").trim() || "", // NEW FIELD
+                            "Sort Order": sortOrder || "",
+                            "Result Offset": resultOffset, // Log pagination offset
+                            "Append": append // Log append status
+                        }
+                    }]
+                };
+
+                const url = `https://api.airtable.com/v0/${atob("YXBwd0VsSEZFekFKNWRpRno=")}/Logs`; // Base ID
+                const apiKey = `Bearer ${atob("cGF0RkFucm91UTNYQUZ5VGYuZjM5YzUyOTVjNjYxMDc2Y2EyOTZhNWQyMmEwNWI4NWIxYTFkYzkwYzVmYzIyNjA0MzBkNTdjODUxYTlhNDNkZQ==")}`;
+
+                
+                
+                fetch(url, {
+                    method: "POST",
+                    headers: { "Authorization": "Bearer patFAnrouQ3XAFyTf.f39c5295c661076ca296a5d22a05b85b1a1dc90c5fc2260430d57c851aca43de", "Content-Type": "application/json" },
+                    body: JSON.stringify(logData)
+                }).then(res => res.json())
+                    .then(data => console.log("Logged:", data))
+                    .catch(err => console.error("Log Error:", err));
+                }
+
+                function generateUUID() {
+                        if (window.crypto && crypto.randomUUID) {
+                            return crypto.randomUUID(); // Native method (modern browsers)
+                        } else {
+                            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                                const r = (Math.random() * 16) | 0,
+                                    v = c === 'x' ? r : (r & 0x3) | 0x8;
+                                return v.toString(16);
+                            });
+                        }
                     }
-                }]
-            };
-
-            const url = `https://api.airtable.com/v0/${atob("YXBwd0VsSEZFekFKNWRpRno=")}/Logs`; // Base ID
-            const apiKey = `Bearer ${atob("cGF0RkFucm91UTNYQUZ5VGYuZjM5YzUyOTVjNjYxMDc2Y2EyOTZhNWQyMmEwNWI4NWIxYTFkYzkwYzVmYzIyNjA0MzBkNTdjODUxYTlhNDNkZQ==")}`;
-
-
-
-            fetch(url, {
-                method: "POST",
-                headers: { "Authorization": "Bearer patFAnrouQ3XAFyTf.f39c5295c661076ca296a5d22a05b85b1a1dc90c5fc2260430d57c851aca43de", "Content-Type": "application/json" },
-                body: JSON.stringify(logData)
-            }).then(res => res.json())
-                .then(data => console.log("Logged:", data))
-                .catch(err => console.error("Log Error:", err));
-        }
-
-        function generateUUID() {
-            if (window.crypto && crypto.randomUUID) {
-                return crypto.randomUUID(); // Native method (modern browsers)
-            } else {
-                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-                    const r = (Math.random() * 16) | 0,
-                        v = c === 'x' ? r : (r & 0x3) | 0x8;
-                    return v.toString(16);
-                });
-            }
-        }
 
 
         async function fetchContractorDetails(contractorBusinessName, contractorHumanName) {
-            document.getElementById("contractorError").style.display = "none"; // Hide error initially
-            document.getElementById("contractorBusinessName").innerHTML = contractorBusinessName
+                document.getElementById("contractorError").style.display = "none"; // Hide error initially
+                document.getElementById("contractorBusinessName").innerHTML = contractorBusinessName
                 ? `<a href="https://services3.arcgis.com/dty2kHktVXHrqO8i/arcgis/rest/services/Active_Contractor_Registrations/FeatureServer/0/query?where=BUSINESS_NAME='${encodeURIComponent(contractorBusinessName)}'&outFields=*&f=html" target="_blank">
         ${contractorBusinessName}
        </a>`
                 : "N/A";
-            document.getElementById("contractorHumanName").textContent = contractorHumanName || "N/A";
-            document.getElementById("contractorId").textContent = "Loading...";
-            document.getElementById("contractorAddress").textContent = "";
-            document.getElementById("contractorPhone").textContent = "";
+                document.getElementById("contractorHumanName").textContent = contractorHumanName || "N/A";
+                document.getElementById("contractorId").textContent = "Loading...";
+                document.getElementById("contractorAddress").textContent = "";
+                document.getElementById("contractorPhone").textContent = "";
 
-            if (!contractorBusinessName) {
-                document.getElementById("contractorError").style.display = "block";
-                document.getElementById("contractorId").textContent = "N/A";
-                return;
-            }
-
-            // Escape single quotes for SQL
-            const safeBusinessName = contractorBusinessName.replace(/'/g, "''");
-
-            const apiUrl = "https://services3.arcgis.com/dty2kHktVXHrqO8i/arcgis/rest/services/Active_Contractor_Registrations/FeatureServer/0/query";
-            const params = new URLSearchParams({
-                where: `BUSINESS_NAME='${safeBusinessName}'`,
-                outFields: "B1_ALT_ID,B1_ADDRESS1,B1_ADDRESS2,B1_CITY,B1_STATE,B1_ZIP,B1_PHONE1,RRP_CERTIFICATION_NO",
-                f: "json"
-            });
-
-            try {
-                const response = await fetch(`${apiUrl}?${params}`);
-
-                // Check if response is OK
-                if (!response.ok) {
-                    throw new Error(`HTTP Error! Status: ${response.status}`);
+                if (!contractorBusinessName) {
+                    document.getElementById("contractorError").style.display = "block";
+                    document.getElementById("contractorId").textContent = "N/A";
+                    return;
                 }
 
-                const data = await response.json();
+                // Escape single quotes for SQL
+                const safeBusinessName = contractorBusinessName.replace(/'/g, "''");
 
-                // Validate that 'features' exists
-                if (!data || !data.features || data.features.length === 0) {
-                    throw new Error("No contractor data found.");
+                const apiUrl = "https://services3.arcgis.com/dty2kHktVXHrqO8i/arcgis/rest/services/Active_Contractor_Registrations/FeatureServer/0/query";
+                const params = new URLSearchParams({
+                    where: `BUSINESS_NAME='${safeBusinessName}'`,
+                    outFields: "B1_ALT_ID,B1_ADDRESS1,B1_ADDRESS2,B1_CITY,B1_STATE,B1_ZIP,B1_PHONE1,RRP_CERTIFICATION_NO",
+                    f: "json"
+                });
+
+                try {
+                    const response = await fetch(`${apiUrl}?${params}`);
+
+                    // Check if response is OK
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error! Status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    // Validate that 'features' exists
+                    if (!data || !data.features || data.features.length === 0) {
+                        throw new Error("No contractor data found.");
+                    }
+
+                    const contractor = data.features[0].attributes;
+
+                    document.getElementById("contractorId").textContent = contractor.B1_ALT_ID || "N/A";
+
+                    document.getElementById("contractorAddress").textContent =
+                        [contractor.B1_ADDRESS1, contractor.B1_ADDRESS2, contractor.B1_CITY, contractor.B1_STATE, contractor.B1_ZIP]
+                            .map(field => field ? field.trim() : "")
+                            .filter(field => field !== "")
+                            .join(", ") || "N/A";
+
+                    document.getElementById("contractorPhone").textContent = contractor.B1_PHONE1?.trim() || "N/A";
+
+                    // Handle RRP Certification
+                    let rrpCert = contractor.RRP_CERTIFICATION_NO?.trim();
+                    if (!rrpCert) {
+                        document.getElementById("contractorRRP").textContent = "NO LEAD SAFE RRP INFO";
+                        document.getElementById("rrpLearnMore").style.display = "inline"; // Show link if not certified
+                    } else {
+                        document.getElementById("contractorRRP").textContent = rrpCert;
+                    }
+                    console.log("rrpCert: ", rrpCert);
+
+                } catch (error) {
+                    console.error("Error fetching contractor data:", error.message);
+                    document.getElementById("contractorError").style.display = "block";
+                    document.getElementById("contractorId").textContent = "Error";
                 }
-
-                const contractor = data.features[0].attributes;
-
-                document.getElementById("contractorId").textContent = contractor.B1_ALT_ID || "N/A";
-
-                document.getElementById("contractorAddress").textContent =
-                    [contractor.B1_ADDRESS1, contractor.B1_ADDRESS2, contractor.B1_CITY, contractor.B1_STATE, contractor.B1_ZIP]
-                        .map(field => field ? field.trim() : "")
-                        .filter(field => field !== "")
-                        .join(", ") || "N/A";
-
-                document.getElementById("contractorPhone").textContent = contractor.B1_PHONE1?.trim() || "N/A";
-
-                // Handle RRP Certification
-                let rrpCert = contractor.RRP_CERTIFICATION_NO?.trim();
-                if (!rrpCert) {
-                    document.getElementById("contractorRRP").textContent = "NO LEAD SAFE RRP INFO";
-                    document.getElementById("rrpLearnMore").style.display = "inline"; // Show link if not certified
-                } else {
-                    document.getElementById("contractorRRP").textContent = rrpCert;
-                }
-                console.log("rrpCert: ", rrpCert);
-
-            } catch (error) {
-                console.error("Error fetching contractor data:", error.message);
-                document.getElementById("contractorError").style.display = "block";
-                document.getElementById("contractorId").textContent = "Error";
-            }
-        } 
+            } 
     </script>
 </head>
-
 <body class="container mt-4">
     <div id="overlay"></div>
     <nav class="navbar navbar-light bg-light fixed-top">
         <div class="container d-flex justify-content-between align-items-center">
             <a class="navbar-brand" href="index.html">🛠️ Cleveland Building Permits</a>
             <button id="filterToggle" class="navbar-toggler position-relative" type="button" data-bs-toggle="collapse"
-                data-bs-target="#filterMenu" aria-controls="filterMenu" aria-expanded="false"
-                aria-label="Toggle navigation">
+                data-bs-target="#filterMenu" aria-controls="filterMenu" aria-expanded="false" aria-label="Toggle navigation">
                 <i class="bi bi-funnel"></i>
                 <span id="filterIndicator" class="filter-dot"></span> <!-- Small colored dot -->
             </button>
             <div class="collapse navbar-collapse" id="filterMenu">
                 <div class="navbar-nav">
                     <div class="input-group me-2 mb-2">
-                        <label for="sortOrder" class="input-group-text"><i
-                                class="bi bi-arrow-down-up"></i>&nbsp;&nbsp;Sort By </label>
+                        <label for="sortOrder" class="input-group-text"><i class="bi bi-arrow-down-up"></i>&nbsp;&nbsp;Sort By </label>
                         <select id="sortOrder" class="form-select" onchange="fetchData()">
                             <option value="FILE_DATE DESC">Newest First</option>
                             <option value="FILE_DATE ASC">Oldest First</option>
@@ -775,10 +764,8 @@
                         </select>
                     </div>
                     <div class="input-group me-2 mb-2">
-                        <input type="text" id="searchInput" class="form-control"
-                            placeholder="Search work description or Permit Number">
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#wildcardHelpModal"
-                            class="btn btn-outline-secondary" title="Search Help">?</a>
+                        <input type="text" id="searchInput" class="form-control" placeholder="Search work description or Permit Number">
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#wildcardHelpModal" class="btn btn-outline-secondary" title="Search Help">?</a>
                     </div>
                     <select id="neighborhoodFilter" class="form-select me-2 mb-2" onchange="fetchData()">
                         <option value="">All Neighborhoods</option>
@@ -832,17 +819,13 @@
                         <option value="Commercial">Commercial Only 🏢</option>
                     </select>
                     <div class="input-group me-2 mb-2">
-                        <input id="addressSearchInput" type="text" class="form-control" placeholder="Search Address"
-                            onchange="resetAndFetchData()">
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#wildcardHelpModal"
-                            class="btn btn-outline-secondary" title="Search Help">?</a>
+                        <input id="addressSearchInput" type="text" class="form-control" placeholder="Search Address" onchange="resetAndFetchData()">
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#wildcardHelpModal" class="btn btn-outline-secondary" title="Search Help">?</a>
                     </div>
                     <!-- NEW CONTRACTOR NAME SEARCH FIELD -->
                     <div class="input-group me-2 mb-2">
-                        <input type="text" id="contractorNameInput" class="form-control"
-                            placeholder="Search Contractor Name">
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#wildcardHelpModal"
-                            class="btn btn-outline-secondary" title="Search Help">?</a>
+                        <input type="text" id="contractorNameInput" class="form-control" placeholder="Search Contractor Name">
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#wildcardHelpModal" class="btn btn-outline-secondary" title="Search Help">?</a>
                     </div>
                     <div class="d-flex gap-2 me-2 mb-2">
                         <input type="number" id="jobValueMin" placeholder="Min Job Value ($)" class="form-control">
@@ -859,8 +842,7 @@
                         <button class="btn btn-danger w-100 mb-2" onclick="clearFilters()">
                             <i class="bi bi-x-circle"></i> Clear filters
                         </button>
-                        <button id="faqButton" class="btn btn-outline-success w-100 mb-2" data-bs-toggle="modal"
-                            data-bs-target="#faqModal">
+                        <button id="faqButton" class="btn btn-outline-success w-100 mb-2" data-bs-toggle="modal" data-bs-target="#faqModal">
                             <i class="bi bi-question-circle"></i> FAQ
                         </button>
                     </div>
@@ -874,9 +856,7 @@
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading more...</span>
         </div>
-        <em>
-            <p id="loadingMessage" class="mt-2">One moment please...</p>
-        </em>
+        <em><p id="loadingMessage" class="mt-2">One moment please...</p></em>
     </div>
     <div id="noMoreResults" class="text-center mt-3" style="display: none;">
         <p>No more results available.</p>
@@ -894,51 +874,44 @@
                     <h6>1. What is the purpose of this website?</h6>
                     <p>This website allows you to quickly learn about permitted work planned in your area. You can see
                         details such as the type of work, estimated cost, and contractors involved.</p>
-
+    
                     <h6>2. Where does the data come from?</h6>
                     <p>The data is provided by the <strong>City of Cleveland's Open Data Portal</strong>. We greatly
                         appreciate the City for making this information publicly available.</p>
                     <p><a href="https://data.clevelandohio.gov/datasets/ClevelandGIS::building-permits/about"
                             target="_blank">View the Open Data portal</a></p>
-                    <p>Permits can also be viewed through the official <strong>City of Cleveland "Accela" Permit Search
-                            Portal</strong>:</p>
+                    <p>Permits can also be viewed through the official <strong>City of Cleveland "Accela" Permit Search Portal</strong>:</p>
                     <p><a href="https://aca-prod.accela.com/COC/Cap/CapHome.aspx?module=BuildingHousing&TabName=BuildingHousing&TabList=Home%7C0%7CBuildingHousing%7C1%7CLicenses%7C2%7CPublicHealth%7C3%7CPublicSafety%7C4%7CPublicService%7C5%7CPlanning%7C6%7CCurrentTabIndex%7C1"
                             target="_blank">
                             Click here to search permits via the City's Accela search portal
                         </a></p>
-
+    
                     <h6>3. How does this website work?</h6>
                     <p>This site pulls data directly from the City's Open Data Portal and presents it in an easy-to-use
                         interface. Data is updated in real-time as new permits are issued.</p>
-
+    
                     <h6>4. Who built this project?</h6>
-                    <p>This project was created by <strong>Angelo Trivisonno</strong>. You can find the source code and
-                        contribute to the project on GitHub:</p>
-                    <p><a href="https://github.com/trivisonno/building-permit-v1" target="_blank">View the GitHub
-                            repository</a></p>
-
+                    <p>This project was created by <strong>Angelo Trivisonno</strong>. You can find the source code and contribute to the project on GitHub:</p>
+                    <p><a href="https://github.com/trivisonno/building-permit-v1" target="_blank">View the GitHub repository</a></p>
+    
                     <h6>5. How do I search for permits?</h6>
-                    <p>Enter a work description or address in the search filters, then click the "Search" button. You
-                        can also filter by permit category, neighborhood, and type.</p>
-
+                    <p>Enter a work description or address in the search filters, then click the "Search" button. You can also filter by permit category, neighborhood, and type.</p>
+    
                     <h6>6. How do I filter results?</h6>
-                    <p>Use the dropdown filters to refine results based on Permit Category, Neighborhood, and Permit
-                        Type.
+                    <p>Use the dropdown filters to refine results based on Permit Category, Neighborhood, and Permit Type.
                     </p>
-
+    
                     <h6>7. Why am I not seeing any results?</h6>
-                    <p>Try clearing filters or adjusting your search terms. Data availability depends on what the City
-                        has
+                    <p>Try clearing filters or adjusting your search terms. Data availability depends on what the City has
                         published.</p>
-
+    
                     <h6>8. How do I load more results?</h6>
-                    <p>Scroll to the bottom of the page, and if more results are available, they will load
-                        automatically.
+                    <p>Scroll to the bottom of the page, and if more results are available, they will load automatically.
                     </p>
-
+    
                     <h6>9. How do I reset my filters?</h6>
                     <p>Click the red "Clear" button to reset all filters and search fields.</p>
-
+    
                     <h6>10. Will there be more functionality in the future?</h6>
                     <p>Yes! As the City continues to expand the data it shares, we will add more features to improve
                         accessibility and insights.</p>
@@ -950,8 +923,7 @@
 
 
     <!-- Contractor Details Modal -->
-    <div class="modal fade" id="contractorModal" tabindex="-1" aria-labelledby="contractorModalLabel"
-        aria-hidden="true">
+    <div class="modal fade" id="contractorModal" tabindex="-1" aria-labelledby="contractorModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -964,13 +936,11 @@
                     <p><strong>Registration ID:</strong> <span id="contractorId"></span></p>
                     <p><strong>Address:</strong> <span id="contractorAddress"></span></p>
                     <p><strong>Phone:</strong> <span id="contractorPhone"></span></p>
-                    <p><strong>Lead Safe:</strong> <span id="contractorRRP"></span> <a id="rrpLearnMore"
-                            href="https://leadsafecle.org/property-owners/find-lead-safe-worker" target="_blank"
-                            style="display: none;">
-                            <br><small><em>(Learn about Lead Safe RRP)</em></small>
-                        </a></p>
-                    <div id="contractorError" class="text-danger" style="display: none;">Contractor details not found.
-                    </div>
+                    <p><strong>Lead Safe:</strong> <span id="contractorRRP"></span> <a id="rrpLearnMore" href="https://leadsafecle.org/property-owners/find-lead-safe-worker" target="_blank"
+                        style="display: none;">
+                        <br><small><em>(Learn about Lead Safe RRP)</em></small>
+                    </a></p>
+                    <div id="contractorError" class="text-danger" style="display: none;">Contractor details not found.</div>
                 </div>
             </div>
         </div>
@@ -987,33 +957,27 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p><strong>Note:</strong> You don’t need to add wildcards at the beginning or end of your search—our
-                        system does this for you automatically.</p>
+                    <p><strong>Note:</strong> You don’t need to add wildcards at the beginning or end of your search—our system does this for you automatically.</p>
                     <p>However, you can use special symbols to refine your search:</p>
                     <ul>
                         <li><strong><code>%</code></strong> – Represents zero or more characters
-                            <br><em>Example:</em> <code>br%</code> finds <code>br</code>, <code>bracelet</code>,
-                            <code>break</code>, and
+                            <br><em>Example:</em> <code>br%</code> finds <code>br</code>, <code>bracelet</code>, <code>break</code>, and
                             <code>brink</code>.
                         </li>
                         <li><strong><code>_</code></strong> – Represents a single character
-                            <br><em>Example:</em> <code>f_r</code> finds <code>far</code>, <code>fir</code>,
-                            <code>for</code>, and
+                            <br><em>Example:</em> <code>f_r</code> finds <code>far</code>, <code>fir</code>, <code>for</code>, and
                             <code>fur</code>.
                         </li>
                         <li><strong><code>[]</code></strong> – Represents any single character within the brackets
-                            <br><em>Example:</em> <code>s[ia]nk</code> finds <code>sink</code> and <code>sank</code>,
-                            but not
+                            <br><em>Example:</em> <code>s[ia]nk</code> finds <code>sink</code> and <code>sank</code>, but not
                             <code>sunk</code>.
                         </li>
                         <li><strong><code>[^]</code></strong> – Excludes characters inside the brackets
-                            <br><em>Example:</em> <code>s[^ia]nk</code> finds <code>sunk</code>, but not
-                            <code>sink</code> or
+                            <br><em>Example:</em> <code>s[^ia]nk</code> finds <code>sunk</code>, but not <code>sink</code> or
                             <code>sank</code>.
                         </li>
                         <li><strong><code>[-]</code></strong> – Represents any character within the specified range
-                            <br><em>Example:</em> <code>s[e-o]n</code> finds <code>sin</code> and <code>son</code>, but
-                            not
+                            <br><em>Example:</em> <code>s[e-o]n</code> finds <code>sin</code> and <code>son</code>, but not
                             <code>sun</code>.
                         </li>
                     </ul>
@@ -1025,5 +989,4 @@
         </div>
     </div>
 </body>
-
 </html>
