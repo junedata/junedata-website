@@ -290,7 +290,7 @@
                                 <p class="card-text mb-0">
                                     <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(record.PRIMARY_ADDRESS)}" target="_blank">${highlightedAddress}</a> 
                                 </p>
-                                <small class="text-muted">${record.DW_Neighborhood || 'N/A'}, Ward ${record.DW_Ward || 'N/A'}</small>
+                                <small class="text-muted">${record.DW_Neighborhood || 'N/A'}, Ward ${Math.round(record.DW_Ward) || 'N/A'}</small>
                             </div>
 
                             <!-- Center section (Work Description - White Background) -->
