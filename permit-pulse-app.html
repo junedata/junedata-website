@@ -246,6 +246,7 @@
 
                     let contractorBusinessName = record.CONTRATOR_BUSINESS_NAME?.trim() || "";
                     let contractorHumanName = record.CONTRACTOR_NAME?.trim() || "";
+                    let contractorAccelaLink = record.ACCELA_CITIZEN_ACCESS_URL?.trim() || "";
 
                     // Escape apostrophes for JS string literal in onclick
                     function jsEscape(str) {
@@ -503,6 +504,22 @@
                 setValue("yearMin", params.get("yearMin") || "");
                 setValue("yearMax", params.get("yearMax") || "");
                 setValue("sortOrder", params.get("sort") || "FILE_DATE DESC");
+
+                // If the URL contained any known filter parameter, show the filter indicator immediately.
+                const filterIndicator = document.getElementById("filterIndicator");
+                const filterKeys = ["search","address","contractor","category","neighborhood","subtype","jobValueMin","jobValueMax","yearMin","yearMax","sort"];
+                const hasFilterParam = filterKeys.some(k => params.has(k) && params.get(k) !== null && params.get(k) !== "");
+                if (filterIndicator) {
+                    if (hasFilterParam) {
+                        filterIndicator.style.display = "block";
+                    } else {
+                        // No explicit URL filter params — fallback to normal input-based detection
+                        updateFilterIndicator();
+                    }
+                } else {
+                    // If indicator element isn't present yet, still update summary state
+                    updateFilterIndicator();
+                }
             }
 
             setFiltersFromUrl();
@@ -669,7 +686,7 @@
                     }
 
 
-        async function fetchContractorDetails(contractorBusinessName, contractorHumanName) {
+        async function fetchContractorDetails(contractorBusinessName, contractorHumanName, contractorAccelaLink) {
                 document.getElementById("contractorError").style.display = "none"; // Hide error initially
                 document.getElementById("contractorBusinessName").innerHTML = contractorBusinessName
                 ? `<a href="https://services3.arcgis.com/dty2kHktVXHrqO8i/arcgis/rest/services/Active_Contractor_Registrations/FeatureServer/0/query?where=BUSINESS_NAME='${encodeURIComponent(contractorBusinessName)}'&outFields=*&f=html" target="_blank">
@@ -693,7 +710,7 @@
                 const apiUrl = "https://services3.arcgis.com/dty2kHktVXHrqO8i/arcgis/rest/services/Active_Contractor_Registrations/FeatureServer/0/query";
                 const params = new URLSearchParams({
                     where: `BUSINESS_NAME='${safeBusinessName}'`,
-                    outFields: "B1_ALT_ID,B1_ADDRESS1,B1_ADDRESS2,B1_CITY,B1_STATE,B1_ZIP,B1_PHONE1,RRP_CERTIFICATION_NO",
+                    outFields: "BUSINESS_NAME,B1_ALT_ID,B1_ADDRESS1,B1_ADDRESS2,B1_CITY,B1_STATE,B1_ZIP,B1_PHONE1,RRP_CERTIFICATION_NO, ACCELA_CITIZEN_ACCESS_URL",
                     f: "json"
                 });
 
@@ -713,6 +730,8 @@
                     }
 
                     const contractor = data.features[0].attributes;
+
+                    document.getElementById("contractorBusinessName").innerHTML = `<a href="${contractor.ACCELA_CITIZEN_ACCESS_URL}" target="_blank">${contractor.BUSINESS_NAME || contractorBusinessName}</a>`;
 
                     document.getElementById("contractorId").textContent = contractor.B1_ALT_ID || "N/A";
 
